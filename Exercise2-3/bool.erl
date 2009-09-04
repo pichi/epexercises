@@ -1,8 +1,8 @@
 -module(bool).
 
--export([b_not/1, b_and/2, b_or/2, b_nand/2, b_xor/2]).
+-export([b_and/2, b_nand/2, b_not/1, b_or/2, b_xor/2]).
 
-b_not(true) -> false;
+b_not(true)  -> false;
 b_not(false) -> true.
 
 b_and(true,  true)  -> true;
