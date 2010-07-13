@@ -2,38 +2,56 @@
 
 -compile(export_all).
 
-parser(L) when is_list(L) -> parser(L, [], []).
+parse(L) -> parser(lexer(L)).
 
-parser(['('|R], O, S) -> parser(R, ['('|O], S);
-parser([{num, _}=X|R], O, S) -> parser(R, O, [X|S]);
-parser([')'|R], O, S) ->
-  {O2, S2} = collect(O, S),
-  parser(R, O2, S2);
-parser([X|R], O, S) ->
-  {O2, S2} = collect(X, O, S),
-  parser(R, [X|O2], S2);
-parser([], O, S) ->
-  {[], [R]} = collect('$end', O, S),
-  R.
+parser(L) when is_list(L) ->
+  {T, []} = expression(L),
+  T.
 
-collect(['('|R], S) -> {R, S};
-collect(['~'|T], [A|R]) -> collect(T, [{'~', A}|R]);
-collect([H|T], [A,B|R]) -> collect(T, [{H, B, A}|R]).
+expression(['~'|T]) -> {X, R} = expression(T), {{'~', X}, R};
+expression(['('|T]) -> {X, [')'|R]} = bin(T), {X, R};
+expression([{num, _}=X|T]) -> {X, T}.
 
-collect(O, ['~'|T], [A|R]) -> collect(O, T, [{'~', A}|R]);
-collect(O, [H|T]=Ops, [A,B|R]=S) ->
-  case priority(H, O) of
-    higher -> collect(O, T, [{H, B, A}|R]);
-    _ -> {Ops, S}
-  end;
-collect(_, O, S) -> {O, S}.
+bin(L) -> {X, [Op|T]} = expression(L),
+  true = lists:member(Op, ['+','-','*', '/']),
+  {Y, R} = expression(T),
+  {{Op, X, Y}, R}.
 
-priority(_, '$end') -> higher;
-priority('*', _) -> higher;
-priority('/', _) -> higher;
-priority('+', X) when X=:='+'; X=:='-' -> higher;
-priority('-', X) when X=:='+'; X=:='-' -> higher;
-priority(_, _) -> lower.
+eval(L) -> evaluator(parse(L)).
+
+evaluator({num, X}) -> X;
+evaluator({'~', X}) -> -evaluator(X);
+evaluator({'+', X, Y}) -> evaluator(X)+evaluator(Y);
+evaluator({'-', X, Y}) -> evaluator(X)-evaluator(Y);
+evaluator({'*', X, Y}) -> evaluator(X)*evaluator(Y);
+evaluator({'/', X, Y}) -> evaluator(X)/evaluator(Y).
+
+pretty_print(X) -> lists:flatten(pp(X)).
+
+pp({num, X}) -> io_lib:write(X);
+pp({'~', X}) -> [$~|pp(X)];
+pp({'+', X, Y}) -> [$(,pp(X)] ++ " + " ++ [pp(Y),$)];
+pp({'-', X, Y}) -> [$(,pp(X)] ++ " - " ++ [pp(Y),$)];
+pp({'*', X, Y}) -> [$(,pp(X)] ++ " * " ++ [pp(Y),$)];
+pp({'/', X, Y}) -> [$(,pp(X)] ++ " / " ++ [pp(Y),$)].
+
+compile(L) -> compiler(parse(L)).
+
+compiler(L) -> lists:reverse(comp(L)).
+
+comp({num, X}) -> [X];
+comp({'~', X}) -> ['~'|comp(X)];
+comp({Op, X, Y}) -> [Op|comp(Y) ++ comp(X)].
+
+simulator(L) -> simulator(L, []).
+
+simulator([], [X]) -> X;
+simulator([X|T], S) when is_number(X) -> simulator(T, [X|S]);
+simulator(['~'|T], [X|S]) -> simulator(T, [-X|S]);
+simulator(['+'|T], [Y,X|S]) -> simulator(T, [X+Y|S]);
+simulator(['-'|T], [Y,X|S]) -> simulator(T, [X-Y|S]);
+simulator(['*'|T], [Y,X|S]) -> simulator(T, [X*Y|S]);
+simulator(['/'|T], [Y,X|S]) -> simulator(T, [X/Y|S]).
 
 lexer([$(|R]) -> ['('|lexer(R)];
 lexer([$)|R]) -> [')'|lexer(R)];
@@ -67,4 +85,11 @@ test_lexer() ->
   ['~','(','(',{num,2},'*',{num,3},')','+','(',{num,3},'*',{num,4},')',')']
     = lexer("~((2*3)+(3*4))"),
   [{num, 4.236}] = lexer("4.236"),
+  ok.
+
+test_parser() ->
+  {'-',{'+',{num,2},{num,3}},{num,4}} = parser(['(','(',{num,2},'+',{num,3},')','-',{num,4},')']),
+  {'~',{'+',{'*',{num,2},{num,3}},{'*',{num,3},{num,4}}}}
+    = parser(['~','(','(',{num,2},'*',{num,3},')','+','(',{num,3},'*',{num,4},')',')']),
+  {num, 4.236} = parser([{num, 4.236}]),
   ok.
