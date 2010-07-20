@@ -53,6 +53,27 @@ simulator(['-'|T], [Y,X|S]) -> simulator(T, [X-Y|S]);
 simulator(['*'|T], [Y,X|S]) -> simulator(T, [X*Y|S]);
 simulator(['/'|T], [Y,X|S]) -> simulator(T, [X/Y|S]).
 
+simplify(L) -> simplifier(parse(L)).
+
+simplifier({'/', {num, X}, _}) when X == 0 -> {num, 0};
+simplifier({'*', {num, X}, _}) when X == 0 -> {num, 0};
+simplifier({'*', _, {num, X}}) when X == 0 -> {num, 0};
+simplifier({Op, X, Y}) -> simplifier_({Op, simplifier(X), simplifier(Y)});
+simplifier({'~', X}) -> simplifier_({'~', simplifier(X)});
+simplifier(E) -> E.
+
+simplifier_({'/', {num, X}, _}) when X == 0 -> {num, 0};
+simplifier_({'*', {num, X}, _}) when X == 0 -> {num, 0};
+simplifier_({'*', _, {num, X}}) when X == 0 -> {num, 0};
+simplifier_({'*', {num, X}, E}) when X == 1 -> E;
+simplifier_({'*', E, {num, X}}) when X == 1 -> E;
+simplifier_({'+', {num, X}, E}) when X == 0 -> E;
+simplifier_({'+', E, {num, X}}) when X == 0 -> E;
+simplifier_({'-', {num, X}, E}) when X == 0 -> simplifier_({'~', E});
+simplifier_({'-', E, {num, X}}) when X == 0 -> E;
+simplifier_({'~', {num, X}}) -> {num, -X};
+simplifier_(E) -> E.
+
 lexer([$(|R]) -> ['('|lexer(R)];
 lexer([$)|R]) -> [')'|lexer(R)];
 lexer([$~|R]) -> ['~'|lexer(R)];
