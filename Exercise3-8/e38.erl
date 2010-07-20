@@ -99,18 +99,66 @@ lex_fract([X|R], N, F) when X =< $9, X >= $0 ->
 lex_fract(R, N, _) -> {N, R}.
 
 test() ->
-  ok = test_lexer().
+  ok = test_lexer(),
+  ok = test_parser(),
+  ok = test_eval(),
+  ok = test_pp(),
+  ok = test_compile(),
+  ok = test_simulator(),
+  ok = test_simplify().
 
 test_lexer() ->
   ['(','(',{num,2},'+',{num,3},')','-',{num,4},')'] = lexer("((2+3)-4)"),
-  ['~','(','(',{num,2},'*',{num,3},')','+','(',{num,3},'*',{num,4},')',')']
-    = lexer("~((2*3)+(3*4))"),
+  ['~','(','(',{num,2},'*',{num,3},')','+','(',{num,6},'/',{num,3},')',')']
+    = lexer("~((2*3)+( 6/3))"),
   [{num, 4.236}] = lexer("4.236"),
   ok.
 
 test_parser() ->
   {'-',{'+',{num,2},{num,3}},{num,4}} = parser(['(','(',{num,2},'+',{num,3},')','-',{num,4},')']),
-  {'~',{'+',{'*',{num,2},{num,3}},{'*',{num,3},{num,4}}}}
-    = parser(['~','(','(',{num,2},'*',{num,3},')','+','(',{num,3},'*',{num,4},')',')']),
+  {'~',{'+',{'*',{num,2},{num,3}},{'/',{num,6},{num,3}}}}
+    = parser(['~','(','(',{num,2},'*',{num,3},')','+','(',{num,6},'/',{num,3},')',')']),
   {num, 4.236} = parser([{num, 4.236}]),
+  ok.
+
+test_eval() ->
+  1 = eval("((2+3)-4)"),
+  -8.0 = eval("~((2*3)+(6/3))"),
+  4.236 = eval("4.236"),
+  ok.
+
+test_pp() ->
+  "((2 + 3) - 4)" = pretty_print(parse("((2+3)-4)")),
+  "~((2 * 3) + (6 / 3))" = pretty_print(parse("~((2*3)+( 6/3))")),
+  "4.236" = pretty_print(parse("4.236")),
+  ok.
+
+test_compile() ->
+  [2,3,'+',4,'-'] = compile("((2+3)-4)"),
+  [2,3,'*',6,3,'/','+','~'] = compile("~((2*3)+(6/3))"),
+  [4.236] = compile("4.236"),
+  ok.
+
+test_simulator() ->
+  1 = simulator([2,3,'+',4,'-']),
+  -8.0 = simulator([2,3,'*',6,3,'/','+','~']),
+  4.236 = simulator([4.236]),
+  ok.
+
+test_simplify() ->
+  {'-',{'+',{num,2},{num,3}},{num,4}} = simplify("((2+3)-4)"),
+  {'~',{'+',{'*',{num,2},{num,3}},{'/',{num,6},{num,3}}}} = simplify("~((2*3)+(6/3))"),
+  {num,4.236} = simplify("4.236"),
+  {num,0} = simplify("(0/(3+4))"),
+  {num,0} = simplify("(0*(3+4))"),
+  {num,0} = simplify("((6/3)*0.0)"),
+  {num,0} = simplify("((6/3)*~((~0+0)*6))"),
+  {num,0} = simplify("((6/3)*(4*0))"),
+  {num,0} = simplify("((6/3)*~((0*8)/4))"),
+  {num,0} = simplify("((6/3)*(0+0))"),
+  {num,0} = simplify("((6/3)*(0-0))"),
+  {num,5} = simplify("(5+0)"),
+  {num,5} = simplify("(5-0)"),
+  {num,3} = simplify("((0+3)*1)"),
+  {num,7} = simplify("(1*(0+7))"),
   ok.
