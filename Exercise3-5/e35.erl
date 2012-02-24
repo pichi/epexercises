@@ -18,6 +18,11 @@ concat([]) -> [].
 append([H | T], L) -> [H | append(T, L)];
 append([], L) -> L.
 
-flatten([H|T]) when is_list(H) -> append(flatten(H), flatten(T));
-flatten([H|T]) -> [H|flatten(T)];
-flatten([]) -> [].
+flatten([   ]  ) -> [];
+flatten([_|_]=L) -> flatten(L, []).
+
+flatten([[_|_]=H | T], Tail) -> flatten(H, flatten(T, Tail));
+flatten([[   ]   | T], Tail) ->            flatten(T, Tail) ;
+flatten([      H    ], Tail) ->       [H |            Tail] ;
+flatten([      H | T], Tail) ->       [H | flatten(T, Tail)];
+flatten([           ], Tail) ->                       Tail.
