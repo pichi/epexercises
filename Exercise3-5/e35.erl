@@ -23,6 +23,5 @@ flatten([_|_]=L) -> flatten(L, []).
 
 flatten([[_|_]=H | T], Tail) -> flatten(H, flatten(T, Tail));
 flatten([[   ]   | T], Tail) ->            flatten(T, Tail) ;
-flatten([      H    ], Tail) ->       [H |            Tail] ;
-flatten([      H | T], Tail) ->       [H | flatten(T, Tail)];
+flatten([      H | T], Tail) ->        [H| flatten(T, Tail)];
 flatten([           ], Tail) ->                       Tail.
